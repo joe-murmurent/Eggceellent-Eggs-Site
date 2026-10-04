@@ -8,8 +8,8 @@ class StorefrontTests(TestCase):
         response = self.client.get(reverse("home"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Fresh from our little corner of the countryside")
-        self.assertContains(response, "A baker's box")
+        self.assertContains(response, "A GOOD DAY STARTS HERE")
+        self.assertContains(response, "The baker's box")
         self.assertContains(response, 'name="email"')
 
     @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")

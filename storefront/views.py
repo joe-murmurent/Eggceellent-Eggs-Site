@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.contrib import messages
-from django.core.mail import send_mail
+from django.core.mail import EmailMessage
 from django.shortcuts import redirect, render
 
 from .forms import EnquiryForm
@@ -17,13 +17,13 @@ def home(request):
             f"Looking for: {data['quantity']}\n\n"
             f"{data['message']}"
         )
-        send_mail(
+        EmailMessage(
             subject,
             body,
             settings.DEFAULT_FROM_EMAIL,
             [settings.CONTACT_EMAIL],
             reply_to=[data["email"]],
-        )
+        ).send()
         messages.success(request, "Thanks for getting in touch. We'll be back to you soon.")
         return redirect("home")
 
