@@ -1,0 +1,46 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f3ed">
+  <title>{% block title %}Joe's Trip{% endblock %} | Joe's Trip</title>
+  <link rel="stylesheet" href="{% static 'storefront/trip.css' %}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <header class="topbar">
+    <a class="wordmark" href="{% url 'home' %}" aria-label="Joe's Trip home"><span class="wordmark-icon" aria-hidden="true">J</span><span>JOE'S TRIP</span></a>
+    {% if user.is_authenticated %}
+      <nav class="main-nav" aria-label="Main navigation">
+        <a href="{% url 'trip_index' %}">2027 Journal</a>
+        {% if site_can_see_eggs %}<a href="{% url 'eggs' %}">EGGS</a>{% endif %}
+        {% if site_is_admin %}
+          <details class="nav-menu"><summary>Admin <span aria-hidden="true">⌄</span></summary><div class="menu-panel"><a href="{% url 'admin_users' %}">Users</a><a href="{% url 'admin_roles' %}">Roles</a><a href="{% url 'admin_organizations' %}">Organizations</a></div></details>
+        {% endif %}
+      </nav>
+      <details class="account-menu">
+        <summary><span class="avatar" aria-hidden="true">{{ user.first_name|default:user.username|slice:":1"|upper }}</span><span class="account-name">{{ user.get_full_name|default:user.username }}</span><span aria-hidden="true">⌄</span></summary>
+        <div class="account-panel">
+          <p class="eyebrow">SIGNED IN AS</p><strong>{{ user.username }}</strong>
+          <form action="{% url 'change_password' %}" method="post" class="password-form">
+            {% csrf_token %}<h2>Change password</h2>
+            <label>Current password<input name="old_password" type="password" autocomplete="current-password" required></label>
+            <label>New password<input name="new_password1" type="password" autocomplete="new-password" required></label>
+            <label>Confirm new password<input name="new_password2" type="password" autocomplete="new-password" required></label>
+            <button class="button button-outline" type="submit">Update password</button>
+          </form>
+          <form action="{% url 'logout' %}" method="post">{% csrf_token %}<button class="plain-button" type="submit">Sign out <span aria-hidden="true">↗</span></button></form>
+        </div>
+      </details>
+    {% else %}
+      <span class="header-caption">A PERSONAL TRIP JOURNAL</span>
+    {% endif %}
+  </header>
+  {% if messages %}<div class="messages" aria-live="polite">{% for message in messages %}<p class="message message-{{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
+  <main>{% block content %}{% endblock %}</main>
+  <footer class="site-footer"><span>JOE'S TRIP <span class="footer-dot">/</span> 2027</span><a href="{% url 'home' %}">Back to home ↑</a></footer>
+  <script src="{% static 'storefront/site.js' %}" defer></script>
+</body>
+</html>

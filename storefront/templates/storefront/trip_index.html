@@ -1,0 +1,21 @@
+{% extends 'storefront/base.html' %}
+{% block title %}Trip journal{% endblock %}
+{% block content %}
+<section class="content-shell">
+  <div class="page-heading"><div><p class="eyebrow">JOE'S 2027 TRIP</p><h1>Trip journal</h1></div><a class="button button-dark" href="#new-entry">New entry <span aria-hidden="true">+</span></a></div>
+  {% if error %}<div class="form-alert" role="alert">{% if error == 'files-too-large' %}Choose up to 8 files, 20 MB each, and 50 MB total.{% elif error == 'invalid-entry' %}Enter an event title and a valid date.{% elif error == 'file-description-invalid' %}File descriptions must be 65,535 characters or fewer.{% else %}The entry or its files could not be saved. Try again.{% endif %}</div>{% endif %}
+  <details class="entry-create" id="new-entry"><summary><span class="summary-icon" aria-hidden="true">+</span><span><strong>Add an event</strong><small>Capture a date, a story, and any trip files.</small></span><span class="summary-arrow" aria-hidden="true">⌄</span></summary>
+    <form action="{% url 'create_trip_entry' %}" method="post" enctype="multipart/form-data" class="entry-form" data-upload-form>{% csrf_token %}
+      <div class="form-grid"><label class="field field-wide">Event title{{ create_form.event_title }}{% if create_form.event_title.errors %}<span class="field-error">{{ create_form.event_title.errors.0 }}</span>{% endif %}</label><label class="field">Event date{{ create_form.event_date }}{% if create_form.event_date.errors %}<span class="field-error">{{ create_form.event_date.errors.0 }}</span>{% endif %}</label><label class="field field-wide">Event description{{ create_form.event_description }}</label></div>
+      <label class="field upload-label">Add files<input type="file" name="files" multiple data-file-input><small>8 files per event · 20 MB per file · 50 MB total</small></label><div class="selected-files" data-file-list></div>
+      <div class="form-actions"><button type="submit" class="button button-dark">Save entry <span aria-hidden="true">↗</span></button></div>
+    </form>
+  </details>
+  <div class="list-heading"><h2>Events</h2><span>{{ entries|length }} entr{{ entries|length|pluralize:"y,ies" }}</span></div>
+  {% if entries %}
+    <div class="event-table-wrap"><table class="event-table"><thead><tr><th>Date</th><th>Event</th><th>Description</th><th class="align-right">Files</th></tr></thead><tbody>
+    {% for entry in entries %}<tr><td class="date-cell">{{ entry.event_date|date:"M j, Y" }}</td><td><a class="event-title" href="{% url 'trip_entry' entry.pk %}">{{ entry.event_title }}</a></td><td class="description-cell">{{ entry.event_description|default:"—"|truncatechars:140 }}</td><td class="align-right file-count">{{ entry.files.count }}</td></tr>{% endfor %}
+    </tbody></table></div>
+  {% else %}<div class="empty-state"><span class="empty-mark" aria-hidden="true">+</span><h2>No trip events yet.</h2><p>When you add the first event, it will show up here.</p></div>{% endif %}
+</section>
+{% endblock %}

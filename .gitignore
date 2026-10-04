@@ -5,6 +5,7 @@ __pycache__/
 venv/
 .env
 staticfiles/
+media/
 .DS_Store
 .env
 .env*

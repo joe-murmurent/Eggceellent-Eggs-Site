@@ -1,71 +1,41 @@
-{% load static %}
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Fresh, carefully gathered eggs from Eggcellent Eggs. Ask about this week's boxes and collection.">
-  <meta name="theme-color" content="#f5f3e9">
-  <title>Eggcellent Eggs | Good eggs, close to home</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'storefront/site.css' %}">
-</head>
-<body>
-  <div class="topline"><span>Gathered with care. Shared close to home.</span><a href="#enquire">Ask about this week's eggs <span aria-hidden="true">↗</span></a></div>
-  <header class="site-header">
-    <a class="brand" href="#home" aria-label="Eggcellent Eggs home"><span class="brand-mark" aria-hidden="true">e</span><span>eggcellent<span class="brand-small">EGGS FROM OUR FARM</span></span></a>
-    <nav aria-label="Main navigation"><a href="#eggs">Our eggs</a><a href="#about">Our little farm</a><a class="nav-cta" href="#enquire">Say hello <span aria-hidden="true">↗</span></a></nav>
-  </header>
-  <main id="home">
-    <section class="hero">
-      <div class="hero-copy">
-        <p class="eyebrow"><span class="eyebrow-dot"></span> A GOOD DAY STARTS HERE</p>
-        <h1>Fresh from our little corner of the <em>countryside.</em></h1>
-        <p class="hero-intro">Good eggs, gathered with care and ready for your breakfast table. Grown close to home, shared with a little more heart.</p>
-        <div class="hero-actions"><a class="button button-dark" href="#eggs">Find your dozen <span aria-hidden="true">↓</span></a><a class="text-link" href="#about">A little about us <span aria-hidden="true">↗</span></a></div>
-        <div class="hero-note"><span class="note-rule"></span><span>Small farm feeling.<br>Properly lovely eggs.</span></div>
-      </div>
-      <div class="hero-image-wrap">
-        <img class="hero-image" src="https://images.unsplash.com/photo-1518569656558-1f25e69d93d7?auto=format&fit=crop&w=1400&q=85" alt="Fresh eggs nestled together, ready for the kitchen" fetchpriority="high">
-        <div class="image-stamp"><span>GATHERED</span><strong>with care</strong><span>SHARED WITH JOY</span></div>
-        <span class="image-caption">A little sunshine in every basket</span>
-      </div>
-      <span class="hero-index" aria-hidden="true">01 / FRESH FROM THE FARM</span>
-    </section>
-
-    <section class="egg-section" id="eggs">
-      <div class="section-heading"><div><p class="eyebrow">THE GOOD STUFF</p><h2>Pick your kind<br>of <em>egg day.</em></h2></div><p class="section-aside">Every egg is a little different.<br>That's part of the lovely.</p></div>
-      <div class="egg-list">
-        <article class="egg-item"><div class="egg-number">01</div><div class="egg-name"><h3>The half-dozen</h3><p>Six fresh ones for the everyday moments.</p></div><div class="egg-count" aria-label="6 eggs"><span>06</span><small>EGGS</small></div><a class="round-arrow" href="#enquire" aria-label="Enquire about a half-dozen">↗</a></article>
-        <article class="egg-item"><div class="egg-number">02</div><div class="egg-name"><h3>The proper dozen</h3><p>For weekend breakfasts and all the rest.</p></div><div class="egg-count" aria-label="12 eggs"><span>12</span><small>EGGS</small></div><a class="round-arrow" href="#enquire" aria-label="Enquire about a dozen">↗</a></article>
-        <article class="egg-item"><div class="egg-number">03</div><div class="egg-name"><h3>The baker's box</h3><p>Thirty eggs for your next kitchen adventure.</p></div><div class="egg-count" aria-label="30 eggs"><span>30</span><small>EGGS</small></div><a class="round-arrow" href="#enquire" aria-label="Enquire about a baker's box">↗</a></article>
-      </div>
-      <p class="availability"><span aria-hidden="true">✳</span> Availability changes with the season. Drop us a note for this week's details.</p>
-    </section>
-
-    <section class="about-section" id="about">
-      <div class="about-photo"><img src="https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?auto=format&fit=crop&w=1200&q=85" alt="A hen out in the farmyard" loading="lazy"><span class="photo-tag">A SLOWER SORT OF FARMING</span></div>
-      <div class="about-copy"><p class="eyebrow">A SMALL FARM, A BIG SOFT SPOT</p><h2>From our hens<br>to <em>your home.</em></h2><p>We think good food has a way of bringing people together. That's why we keep things thoughtful, gather by hand, and share what our little farm has to offer.</p><p>Come for the eggs. Stay for the feeling that your breakfast came from somewhere real.</p><a class="text-link" href="#enquire">Get to know us <span aria-hidden="true">↗</span></a><div class="about-seal" aria-hidden="true"><span>GOOD THINGS</span><strong>grow<br>close</strong><span>TO HOME</span></div></div>
-    </section>
-
-    <section class="contact-section" id="enquire">
-      <div class="contact-intro"><p class="eyebrow">A NOTE FROM YOU</p><h2>Let's get the<br><em>good eggs</em><br>rolling.</h2><p>Ask about this week's availability, collection, or anything else on your mind.</p><div class="contact-mark" aria-hidden="true">eg.</div></div>
-      <div class="contact-form-wrap">
-        {% if messages %}<div class="form-message" role="status">{% for message in messages %}{{ message }}{% endfor %}</div>{% endif %}
-        <form method="post" class="enquiry-form">
-          {% csrf_token %}
-          {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
-          <div class="field-row"><div class="field"><label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>{{ form.name }}{{ form.name.errors }}</div><div class="field"><label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>{{ form.email }}{{ form.email.errors }}</div></div>
-          <div class="field"><label for="{{ form.quantity.id_for_label }}">{{ form.quantity.label }}</label>{{ form.quantity }}{{ form.quantity.errors }}</div>
-          <div class="field"><label for="{{ form.message.id_for_label }}">{{ form.message.label }}</label>{{ form.message }}{{ form.message.errors }}</div>
-          <button class="button button-cream" type="submit">Send your note <span aria-hidden="true">↗</span></button>
-          <p class="privacy-note">Just a friendly reply from us. Your details stay with the farm.</p>
-        </form>
-      </div>
-    </section>
-  </main>
-  <footer class="site-footer"><a class="brand brand-footer" href="#home"><span class="brand-mark" aria-hidden="true">e</span><span>eggcellent<span class="brand-small">EGGS FROM OUR FARM</span></span></a><p>Good eggs. Good neighbours. Good mornings.</p><a href="#home" class="back-top">BACK TO TOP ↑</a><span class="footer-year">© {% now "Y" %} Eggcellent Eggs</span></footer>
-</body>
-</html>
+{% extends 'storefront/base.html' %}
+{% block title %}Home{% endblock %}
+{% block content %}
+{% if user.is_authenticated %}
+<section class="home-dashboard page-shell">
+  <div class="home-copy">
+    <p class="eyebrow"><span class="eyebrow-mark"></span> THE JOURNEY STARTS HERE</p>
+    <h1>Hello, <em>{{ user.first_name|default:user.username }}.</em></h1>
+    <p class="lede">Your home base for the stories, plans, and moments from Joe's 2027 trip.</p>
+    <a class="button button-dark" href="{% url 'trip_index' %}">Open the trip journal <span aria-hidden="true">↗</span></a>
+    <div class="home-meta"><span>TRIP JOURNAL</span><strong>{{ entry_count }} entr{{ entry_count|pluralize:"y,ies" }}</strong></div>
+  </div>
+  <aside class="latest-panel">
+    <div class="panel-topline"><span>RECENTLY IN THE JOURNAL</span><span class="panel-index">01</span></div>
+    {% if latest_entry %}
+      <p class="date-label">{{ latest_entry.event_date|date:"F j, Y" }}</p>
+      <h2>{{ latest_entry.event_title }}</h2>
+      <p class="latest-description">{{ latest_entry.event_description|default:"A new page in the trip story."|truncatechars:170 }}</p>
+      <a class="text-link" href="{% url 'trip_entry' latest_entry.pk %}">Read this entry <span aria-hidden="true">↗</span></a>
+    {% else %}
+      <div class="empty-latest"><span class="empty-mark" aria-hidden="true">+</span><h2>The first page is waiting.</h2><p>Your trip events will appear here as they are added to the journal.</p><a class="text-link" href="{% url 'trip_index' %}">Go to the journal <span aria-hidden="true">↗</span></a></div>
+    {% endif %}
+    <div class="latest-rule"></div>
+  </aside>
+  <span class="home-index" aria-hidden="true">PERSONAL JOURNAL <span>01 / 03</span></span>
+</section>
+{% else %}
+<section class="login-page">
+  <div class="login-copy"><p class="eyebrow"><span class="eyebrow-mark"></span> A PERSONAL TRIP JOURNAL</p><h1>Make room for<br>the <em>memories.</em></h1><p class="lede">A home for the plans, people, and places that make a trip worth remembering.</p><div class="login-note"><span class="note-line"></span><span>JOE'S TRIP JOURNAL<br>ESTABLISHED 2026</span></div></div>
+  <div class="login-wrap"><div class="login-heading"><span class="login-number">01</span><div><p class="eyebrow">MEMBER SIGN IN</p><h2>Welcome back.</h2></div></div>
+    {% if form.non_field_errors %}<div class="form-alert" role="alert">{% for error in form.non_field_errors %}{{ error }}{% endfor %}</div>{% endif %}
+    <form method="post" class="login-form">{% csrf_token %}
+      <label for="id_username">Username</label>{{ form.username }}{{ form.username.errors }}
+      <label for="id_password">Password</label>{{ form.password }}{{ form.password.errors }}
+      <button class="button button-dark button-wide" type="submit">Sign in <span aria-hidden="true">↗</span></button>
+    </form>
+    <p class="login-footnote">Private trip journal. Sign in with your account to continue.</p>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
