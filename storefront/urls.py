@@ -9,6 +9,7 @@ urlpatterns = [
     path("trip-2027/", views.trip_index, name="trip_index"),
     path("trip-2027/new/", views.create_trip_entry, name="create_trip_entry"),
     path("trip-2027/<int:pk>/", views.trip_entry, name="trip_entry"),
+    path("trip-2027/<int:pk>/files/upload/", views.upload_trip_file, name="upload_trip_file"),
     path("trip-2027/<int:pk>/delete/", views.delete_trip_entry, name="delete_trip_entry"),
     path("trip-2027/<int:pk>/files/<int:file_pk>/description/", views.update_file_description, name="update_file_description"),
     path("trip-2027/<int:pk>/files/<int:file_pk>/delete/", views.delete_trip_file, name="delete_trip_file"),

@@ -16,6 +16,10 @@ python manage.py runserver
 
 Open `http://127.0.0.1:8000/`. The root page is the sign-in screen; authenticated users land on the trip dashboard. The journal is at `/trip-2027/`. Admin role screens are `/admin/users/`, `/admin/roles/`, and `/admin/orgs/`; the optional Django administration site is at `/django-admin/`.
 
+Uploads are stored in the project's `media/` directory during local development (`DEBUG=True`). With `DEBUG=False`, uploads use `/mnt/seagate4tb` on the Raspberry Pi; uploaded trip files are placed in its `trip_2027_files/` subdirectory, organized into `images/`, `videos/`, and `other/`. The app chooses between these paths using `DEBUG`.
+
+Event-form uploads use authenticated HTTP requests sent in 5 MiB chunks, so MP4 videos are not limited by a single large request. (Browsers cannot upload directly over SFTP.) An event can contain up to 8 files; total upload size is bounded by available storage rather than an application-level byte limit. Incomplete temporary chunks under `.upload_chunks` are removed after 24 hours when another chunk upload request runs.
+
 Run checks and tests with:
 
 ```powershell
@@ -63,14 +67,28 @@ python manage.py collectstatic --noinput
 
 Create `/etc/joes-trip-site.env` outside the project, restrict its permissions, and set a unique `SECRET_KEY`, `DEBUG=False`, `ALLOWED_HOSTS` to the Pi hostname/domain, and `CSRF_TRUSTED_ORIGINS` to the site's HTTPS origin. Django does not read `.env` automatically; expose those values to Apache through a systemd service environment override or suitable Apache environment configuration. Do not commit secrets.
 
-The SQLite database and uploaded media must be writable by Apache; source code, virtualenv, and static assets only need to be readable. Keep the database directory writable so SQLite can create journal files:
+The SQLite database and mounted upload directory must be writable by Apache; source code, virtualenv, and static assets only need to be readable. Confirm `/mnt/seagate4tb` is mounted before starting Apache. Keep the database directory writable so SQLite can create journal files:
 
 ```bash
 sudo chgrp -R www-data /srv/joes-trip-site
 sudo chmod -R g+rX /srv/joes-trip-site
 sudo chmod g+w /srv/joes-trip-site /srv/joes-trip-site/db.sqlite3
-sudo chmod -R g+rwX /srv/joes-trip-site/media
 ```
+
+For an NTFS-3G upload drive, `chgrp` and `chmod` do not override the ownership/modes set at mount time. Check Apache's numeric group with `getent group www-data`, back up `/etc/fstab`, and set the `/mnt/seagate4tb` entry's `gid` to that group ID while retaining group-write masks (the current Pi uses `gid=33,dmask=007,fmask=117`). The NTFS mount applies that group and mode across the volume, so use a drive dedicated to site uploads rather than a shared drive containing data Apache must not access. After editing `/etc/fstab`, reload and remount it:
+
+```bash
+sudo cp -a /etc/fstab /etc/fstab.bak
+sudoedit /etc/fstab
+sudo systemctl daemon-reload
+sudo systemctl stop apache2
+sudo umount /mnt/seagate4tb
+sudo mount /mnt/seagate4tb
+sudo -u www-data test -w /mnt/seagate4tb/trip_2027_files
+sudo systemctl start apache2
+```
+
+Production uses `FILE_UPLOAD_PERMISSIONS=None` so Django leaves file modes to NTFS-3G instead of attempting an unsupported `chmod` after each upload.
 
 Edit `deploy/apache-joes-trip.conf` and replace `trip.example.com` with the real hostname. Then enable WSGI and the site:
 
@@ -82,4 +100,4 @@ sudo apache2ctl configtest
 sudo systemctl reload apache2
 ```
 
-Review `/var/log/apache2/joes-trip-error.log` for runtime errors. Configure DNS and HTTPS before exposing the site publicly. Back up both `db.sqlite3` and `media/`.
+Review `/var/log/apache2/joes-trip-error.log` for runtime errors. Configure DNS and HTTPS before exposing the site publicly. Back up `db.sqlite3` and `/mnt/seagate4tb`.

@@ -11,7 +11,8 @@ if not SECRET_KEY:
     if not DEBUG:
         raise ImproperlyConfigured("Set a unique SECRET_KEY when DEBUG is disabled.")
     SECRET_KEY = "django-insecure-local-development-only-change-me"
-ALLOWED_HOSTS = [host.strip() for host in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if host.strip()]
+ALLOWED_HOSTS = ['*']
+# ALLOWED_HOSTS = [host.strip() for host in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if host.strip()]
 CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if origin.strip()]
 
 INSTALLED_APPS = [
@@ -75,8 +76,9 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = BASE_DIR / "media" if DEBUG else Path("/mnt/seagate4tb")
 MEDIA_URL = "/media/"
+FILE_UPLOAD_PERMISSIONS = 0o644 if DEBUG else None
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",

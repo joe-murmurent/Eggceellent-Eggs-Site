@@ -1,5 +1,23 @@
 from django.conf import settings
 from django.db import models
+from pathlib import PurePosixPath
+
+
+IMAGE_FILE_SUFFIXES = {".avif", ".bmp", ".gif", ".heic", ".heif", ".jpeg", ".jpg", ".png", ".tif", ".tiff", ".webp"}
+VIDEO_FILE_SUFFIXES = {".3gp", ".avi", ".m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".mpg", ".webm", ".wmv"}
+
+
+def trip_entry_file_upload_to(instance, filename):
+    safe_name = PurePosixPath(filename.replace("\\", "/")).name
+    suffix = PurePosixPath(safe_name).suffix.lower()
+    file_type = (instance.file_type or "").lower()
+    if file_type.startswith("image/") or suffix in IMAGE_FILE_SUFFIXES:
+        category = "images"
+    elif file_type.startswith("video/") or suffix in VIDEO_FILE_SUFFIXES:
+        category = "videos"
+    else:
+        category = "other"
+    return f"trip_2027_files/{category}/{safe_name}"
 
 
 class Organization(models.Model):
@@ -41,7 +59,7 @@ class TripEntryFile(models.Model):
         on_delete=models.CASCADE,
         related_name="files",
     )
-    file = models.FileField(upload_to="trip_2027_files/")
+    file = models.FileField(upload_to=trip_entry_file_upload_to)
     file_name = models.TextField()
     file_type = models.TextField()
     description = models.TextField(blank=True, null=True)
@@ -53,3 +71,7 @@ class TripEntryFile(models.Model):
 
     def __str__(self):
         return self.file_name
+
+    @property
+    def is_mp4_video(self):
+        return self.file_name.lower().endswith(".mp4") or self.file_type.lower() == "video/mp4"
