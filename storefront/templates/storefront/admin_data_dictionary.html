@@ -1,0 +1,8 @@
+{% extends 'storefront/base.html' %}
+{% block title %}Data Dictionary{% endblock %}
+{% block content %}
+<section class="content-shell admin-page">
+  <div class="page-heading"><div><p class="eyebrow">ADMINISTRATION</p><h1>Data Dictionary</h1></div></div>
+  <article class="data-dictionary">{{ data_dictionary_html|safe }}</article>
+</section>
+{% endblock %}

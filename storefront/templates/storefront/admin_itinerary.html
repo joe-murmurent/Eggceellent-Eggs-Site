@@ -1,0 +1,45 @@
+{% extends 'storefront/base.html' %}
+{% load static %}
+{% block title %}Itinerary Planner{% endblock %}
+{% block extra_head %}{% if map_events %}<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.css">{% endif %}{% endblock %}
+{% block content %}
+<section class="content-shell admin-page itinerary-page">
+  <div class="page-heading"><div><p class="eyebrow">ADMINISTRATION</p><h1>Itinerary Planner</h1></div><span class="admin-count">{{ stop_rows|length }} destinations</span></div>
+
+  {% if map_events %}
+  <section class="route-map-section" aria-labelledby="itinerary-map-title">
+    <div class="list-heading"><h2 id="itinerary-map-title">Route map</h2><span>{{ map_events|length }} located destination{{ map_events|length|pluralize }}</span></div>
+    <div id="trip-map" class="trip-map" data-trip-map role="region" aria-label="Map of itinerary destinations in date order"></div>{{ map_events|json_script:"trip-map-events" }}
+    <p class="map-status" data-map-status role="status" aria-live="polite">Loading map…</p>
+  </section>
+  {% else %}<p class="map-empty">Add coordinates to itinerary stops to display their route map.</p>{% endif %}
+
+  {% if assumptions %}<details class="planner-notes"><summary><strong>Planning assumptions</strong><span>{{ assumptions|length }} notes</span></summary><dl>{% for item in assumptions %}<div><dt>{{ item.title }}</dt><dd>{{ item.detail }}</dd></div>{% endfor %}</dl></details>{% endif %}
+
+  <details class="entry-create itinerary-create"><summary><span class="summary-icon" aria-hidden="true">+</span><span><strong>Add a destination</strong><small>Plan dates, campground, route, booking details, and map coordinates.</small></span><span class="summary-arrow" aria-hidden="true">⌄</span></summary>
+    <form method="post" class="entry-form">{% csrf_token %}<input type="hidden" name="action" value="create">
+      <div class="form-grid">{% for field in create_form %}<label class="field{% if field.name == 'booking_requirements' or field.name == 'attractions' or field.name == 'fuel_errands' or field.name == 'weather' or field.name == 'towing_notes' %} field-wide{% endif %}">{{ field.label }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</label>{% endfor %}</div>
+      <div class="form-actions"><button class="button button-dark" type="submit">Add destination <span aria-hidden="true">+</span></button></div>
+    </form>
+  </details>
+
+  <div class="list-heading itinerary-list-heading"><h2>Route itinerary</h2><span>Chronological order</span></div>
+  <div class="itinerary-list">
+  {% for row in stop_rows %}
+    <details class="itinerary-stop" id="stop-{{ row.stop.pk }}">
+      <summary><span class="itinerary-day">{{ row.stop.stop_date|date:"M j" }}</span><span class="itinerary-destination"><strong>{{ row.stop.destination }}</strong><small>{{ row.stop.preferred_campground|default:"Campground not selected" }}</small></span><span class="itinerary-route">{{ row.stop.drive_time|default:"Drive time TBD" }}</span><span class="booking-status">{{ row.stop.booking_status|default:"Unplanned" }}</span><span class="summary-arrow" aria-hidden="true">⌄</span></summary>
+      <div class="itinerary-stop-body">
+        <form method="post" class="entry-form itinerary-edit-form">{% csrf_token %}<input type="hidden" name="action" value="update"><input type="hidden" name="stop_id" value="{{ row.stop.pk }}">
+          <div class="form-grid">{% for field in row.form %}<label class="field{% if field.name == 'booking_requirements' or field.name == 'attractions' or field.name == 'fuel_errands' or field.name == 'weather' or field.name == 'towing_notes' %} field-wide{% endif %}">{{ field.label }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</label>{% endfor %}</div>
+          <div class="form-actions"><button class="small-button" type="submit">Save destination</button></div>
+        </form>
+        <form method="post" class="itinerary-delete-form" onsubmit="return confirm('Delete this itinerary destination?')">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="stop_id" value="{{ row.stop.pk }}"><button class="plain-button danger-text" type="submit">Delete destination</button></form>
+      </div>
+    </details>
+  {% empty %}<div class="empty-state compact"><h2>No itinerary stops loaded.</h2><p>Import the master planner workbook or add the first destination.</p></div>{% endfor %}
+  </div>
+
+  {% if sources %}<section class="admin-section planner-sources"><h2>Workbook sources</h2><ul>{% for item in sources %}<li><a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a><span>{{ item.detail }}</span></li>{% endfor %}</ul></section>{% endif %}
+</section>
+{% endblock %}
+{% block extra_scripts %}{% if map_events %}<script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js"></script><script src="{% static 'storefront/map.js' %}" defer></script>{% endif %}{% endblock %}

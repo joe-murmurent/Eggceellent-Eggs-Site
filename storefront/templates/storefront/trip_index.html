@@ -1,12 +1,18 @@
 {% extends 'storefront/base.html' %}
+{% load static %}
 {% block title %}Trip journal{% endblock %}
+{% block extra_head %}{% if map_events %}<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.css">{% endif %}{% endblock %}
 {% block content %}
 <section class="content-shell">
   <div class="page-heading"><div><p class="eyebrow">JOE'S 2027 TRIP</p><h1>Trip journal</h1></div></div>
+  <section class="route-map-section" aria-labelledby="route-map-title">
+    <div class="list-heading"><h2 id="route-map-title">Route map</h2><span>{{ map_events|length }} located event{{ map_events|length|pluralize }}</span></div>
+    {% if map_events %}<div id="trip-map" class="trip-map" data-trip-map role="region" aria-label="Map of trip events in date order"></div>{{ map_events|json_script:"trip-map-events" }}<p class="map-status" data-map-status role="status" aria-live="polite">Loading map…</p>{% else %}<p class="map-empty">Add event coordinates to show them on the route map.</p>{% endif %}
+  </section>
   {% if error %}<div class="form-alert" role="alert">{% if error == 'video-format-not-allowed' %}Only MP4 video format is allowed. Remove other video formats and select an MP4 file.{% elif error == 'too-many-files' %}An event can have up to 8 files.{% elif error == 'upload-failed' %}The event was saved, but one or more files did not finish uploading. Add the remaining files from the event page.{% elif error == 'invalid-entry' %}Enter an event title and a valid date.{% elif error == 'file-description-invalid' %}File descriptions must be 65,535 characters or fewer.{% else %}The entry or its files could not be saved. Try again.{% endif %}</div>{% endif %}
   <details class="entry-create" id="new-entry"><summary><span class="summary-icon" aria-hidden="true">+</span><span><strong>Add an event</strong><small>Capture a date, a story, and any trip files.</small></span><span class="summary-arrow" aria-hidden="true">⌄</span></summary>
     <form action="{% url 'create_trip_entry' %}" method="post" enctype="multipart/form-data" class="entry-form" data-upload-form>{% csrf_token %}
-      <div class="form-grid"><label class="field field-wide">Event title{{ create_form.event_title }}{% if create_form.event_title.errors %}<span class="field-error">{{ create_form.event_title.errors.0 }}</span>{% endif %}</label><label class="field">Event date{{ create_form.event_date }}{% if create_form.event_date.errors %}<span class="field-error">{{ create_form.event_date.errors.0 }}</span>{% endif %}</label><label class="field field-wide">Event description{{ create_form.event_description }}</label></div>
+      <div class="form-grid"><label class="field field-wide">Event title{{ create_form.event_title }}{% if create_form.event_title.errors %}<span class="field-error">{{ create_form.event_title.errors.0 }}</span>{% endif %}</label><label class="field">Event date{{ create_form.event_date }}{% if create_form.event_date.errors %}<span class="field-error">{{ create_form.event_date.errors.0 }}</span>{% endif %}</label><label class="field field-wide">Event description{{ create_form.event_description }}</label><label class="field field-wide">{{ create_form.geo_location.label }}{{ create_form.geo_location }}<small>{{ create_form.geo_location.help_text }}</small>{% if create_form.geo_location.errors %}<span class="field-error">{{ create_form.geo_location.errors.0 }}</span>{% endif %}</label></div>
       <label class="field upload-label">Add files<input type="file" name="files" multiple data-file-input><small>Up to 8 files per event · MP4 videos upload in chunks</small></label><div class="form-alert upload-format-error" data-upload-format-error role="alert" hidden>Only MP4 video format is allowed. Remove other video formats and select an MP4 file.</div><div class="selected-files" data-file-list></div><div class="upload-overall" data-upload-overall hidden><span>Upload progress</span><span data-upload-overall-label>0%</span><progress max="100" value="0" data-upload-overall-progress aria-label="Total upload progress"></progress></div><p class="upload-status" data-upload-status role="status" aria-live="polite"></p>
       <div class="form-actions"><button type="submit" class="button button-dark">Save entry <span aria-hidden="true">↗</span></button></div>
     </form>
@@ -19,3 +25,4 @@
   {% else %}<div class="empty-state"><span class="empty-mark" aria-hidden="true">+</span><h2>No trip events yet.</h2><p>When you add the first event, it will show up here.</p></div>{% endif %}
 </section>
 {% endblock %}
+{% block extra_scripts %}{% if map_events %}<script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js"></script><script src="{% static 'storefront/map.js' %}" defer></script>{% endif %}{% endblock %}

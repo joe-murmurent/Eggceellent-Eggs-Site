@@ -43,6 +43,7 @@ class TripEntry(models.Model):
     event_date = models.DateField()
     event_title = models.TextField()
     event_description = models.TextField(blank=True, null=True)
+    geo_location = models.CharField(max_length=64, blank=True, default="", verbose_name="geo-location")
 
     class Meta:
         ordering = ["-event_date", "-id"]
@@ -51,6 +52,58 @@ class TripEntry(models.Model):
 
     def __str__(self):
         return f"{self.event_date}: {self.event_title}"
+
+
+class ItineraryStop(models.Model):
+    day_number = models.PositiveSmallIntegerField()
+    stop_date = models.DateField()
+    destination = models.CharField(max_length=180)
+    preferred_campground = models.CharField(max_length=200, blank=True)
+    alternate_campground = models.CharField(max_length=200, blank=True)
+    check_in = models.DateField(blank=True, null=True)
+    check_out = models.DateField(blank=True, null=True)
+    route = models.CharField(max_length=255, blank=True)
+    drive_time = models.CharField(max_length=80, blank=True)
+    site_type = models.CharField(max_length=100, blank=True)
+    booking_requirements = models.TextField(blank=True)
+    price_or_membership = models.CharField(max_length=100, blank=True)
+    booking_opening_estimate = models.CharField(max_length=80, blank=True)
+    attractions = models.TextField(blank=True)
+    landscape = models.CharField(max_length=100, blank=True)
+    fuel_errands = models.TextField(blank=True)
+    stop_category = models.CharField(max_length=100, blank=True)
+    weather = models.TextField(blank=True)
+    towing_notes = models.TextField(blank=True)
+    booking_status = models.CharField(max_length=40, blank=True)
+    geo_location = models.CharField(max_length=64, blank=True, default="")
+
+    class Meta:
+        ordering = ["stop_date", "day_number", "id"]
+        verbose_name = "itinerary stop"
+        verbose_name_plural = "itinerary stops"
+
+    def __str__(self):
+        return f"Day {self.day_number}: {self.destination}"
+
+
+class ItineraryReference(models.Model):
+    ASSUMPTION = "assumption"
+    SOURCE = "source"
+    REFERENCE_TYPES = [(ASSUMPTION, "Planning assumption"), (SOURCE, "Source")]
+
+    reference_type = models.CharField(max_length=20, choices=REFERENCE_TYPES)
+    title = models.CharField(max_length=200)
+    detail = models.TextField(blank=True)
+    url = models.URLField(blank=True)
+    display_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["reference_type", "display_order", "id"]
+        verbose_name = "itinerary reference"
+        verbose_name_plural = "itinerary references"
+
+    def __str__(self):
+        return self.title
 
 
 class TripEntryFile(models.Model):

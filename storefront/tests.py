@@ -1,13 +1,16 @@
 import tempfile
-from datetime import date
+from datetime import date, datetime
+from io import StringIO
 
 from django.contrib.auth.models import Group, User
+from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
+from openpyxl import Workbook
 
 from config.hashers import LegacySHA256PasswordHasher
-from .models import Organization, TripEntry, TripEntryFile
+from .models import ItineraryReference, ItineraryStop, Organization, TripEntry, TripEntryFile
 
 
 class TripSiteTests(TestCase):
@@ -80,6 +83,77 @@ class TripSiteTests(TestCase):
         self.assertEqual(download.status_code, 200)
         self.assertEqual(b"".join(download.streaming_content), b"ticket contents")
         self.assertEqual(download["X-Content-Type-Options"], "nosniff")
+
+    def test_trip_entry_coordinates_are_validated_and_crud_supported(self):
+        self.client.force_login(self.viewer)
+        created = self.client.post(
+            reverse("create_trip_entry"),
+            {
+                "event_title": "Coordinates",
+                "event_date": "2027-06-10",
+                "event_description": "Location test",
+                "geo_location": " 51.5072, -0.1276 ",
+            },
+        )
+        entry = TripEntry.objects.get(event_title="Coordinates")
+        self.assertRedirects(created, reverse("trip_entry", args=[entry.pk]))
+        self.assertEqual(entry.geo_location, "51.5072, -0.1276")
+
+        updated = self.client.post(
+            reverse("trip_entry", args=[entry.pk]),
+            {
+                "event_title": "Coordinates updated",
+                "event_date": "2027-06-11",
+                "event_description": "Updated location",
+                "geo_location": "48.8566, 2.3522",
+            },
+        )
+        self.assertRedirects(updated, reverse("trip_entry", args=[entry.pk]))
+        entry.refresh_from_db()
+        self.assertEqual(entry.geo_location, "48.8566, 2.3522")
+
+        invalid = self.client.post(
+            reverse("trip_entry", args=[entry.pk]),
+            {
+                "event_title": "Invalid coordinates",
+                "event_date": "2027-06-11",
+                "event_description": "Invalid location",
+                "geo_location": "91, 181",
+            },
+        )
+        self.assertEqual(invalid.status_code, 400)
+        entry.refresh_from_db()
+        self.assertEqual(entry.geo_location, "48.8566, 2.3522")
+
+    def test_trip_map_payload_orders_located_events_by_date(self):
+        later = TripEntry.objects.create(
+            event_date=date(2027, 6, 12),
+            event_title="Later stop",
+            geo_location="48.8566, 2.3522",
+        )
+        earlier = TripEntry.objects.create(
+            event_date=date(2027, 6, 10),
+            event_title="First stop",
+            geo_location="51.5072, -0.1276",
+        )
+        TripEntry.objects.create(
+            event_date=date(2027, 6, 11),
+            event_title="No coordinates",
+        )
+        self.client.force_login(self.viewer)
+
+        response = self.client.get(reverse("trip_index"))
+
+        self.assertContains(response, 'data-trip-map')
+        self.assertContains(response, "maplibre-gl")
+        self.assertContains(response, "/static/storefront/map.js")
+        self.assertNotContains(response, "GOOGLE_MAPS_API_KEY")
+        first_position = response.content.index(b'"title": "First stop"')
+        later_position = response.content.index(b'"title": "Later stop"')
+        self.assertLess(first_position, later_position)
+        self.assertNotContains(response, '"title": "No coordinates"')
+        self.assertEqual(earlier.geo_location, "51.5072, -0.1276")
+        self.assertEqual(later.geo_location, "48.8566, 2.3522")
 
     def test_mp4_playback_supports_private_byte_ranges(self):
         entry = TripEntry.objects.create(event_date=date(2027, 6, 10), event_title="Video playback")
@@ -226,6 +300,8 @@ class TripSiteTests(TestCase):
         self.client.force_login(self.viewer)
         denied = self.client.get(reverse("admin_users"))
         self.assertEqual(denied.status_code, 302)
+        self.assertEqual(self.client.get(reverse("admin_data_dictionary")).status_code, 302)
+        self.assertNotContains(self.client.get(reverse("trip_index")), "Data Dictionary")
 
         self.client.force_login(self.admin)
         response = self.client.post(
@@ -235,6 +311,11 @@ class TripSiteTests(TestCase):
         self.assertRedirects(response, reverse("admin_organizations"))
         self.assertTrue(Organization.objects.filter(business_name="Joe's Trip", city="London").exists())
         self.assertEqual(self.client.get(reverse("admin_roles")).status_code, 200)
+        self.assertContains(self.client.get(reverse("admin_itinerary")), "Itinerary Planner")
+        dictionary_response = self.client.get(reverse("admin_data_dictionary"))
+        self.assertContains(dictionary_response, "Data Dictionary")
+        self.assertContains(dictionary_response, "storefront_tripentryfile")
+        self.assertContains(dictionary_response, "trip_entry_id")
 
     def test_eggs_route_is_role_restricted(self):
         self.client.force_login(self.viewer)
@@ -274,6 +355,8 @@ class TripSiteTests(TestCase):
             "admin_users",
             "admin_roles",
             "admin_organizations",
+            "admin_data_dictionary",
+            "admin_itinerary",
         ]:
             with self.subTest(route=route):
                 self.assertEqual(self.client.get(reverse(route)).status_code, 200)
@@ -285,6 +368,82 @@ class TripSiteTests(TestCase):
         self.assertContains(detail, "data-video-open")
         self.assertContains(detail, "controls")
         self.assertContains(detail, "data-upload-overall")
+
+    def test_itinerary_planner_is_admin_only_and_validates_coordinates(self):
+        self.client.force_login(self.viewer)
+        denied = self.client.get(reverse("admin_itinerary"))
+        self.assertEqual(denied.status_code, 302)
+        self.assertNotContains(self.client.get(reverse("trip_index")), "Itinerary Planner")
+
+        self.client.force_login(self.admin)
+        self.assertContains(self.client.get(reverse("trip_index")), reverse("admin_itinerary"))
+        page = self.client.get(reverse("admin_itinerary"))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Add a destination")
+
+        created = self.client.post(
+            reverse("admin_itinerary"),
+            {
+                "action": "create",
+                "day_number": 1,
+                "stop_date": "2027-05-01",
+                "destination": "Seaside, OR",
+                "preferred_campground": "Fort Stevens State Park",
+                "geo_location": " 45.9932, -123.9226 ",
+            },
+        )
+        self.assertRedirects(created, reverse("admin_itinerary"))
+        stop = ItineraryStop.objects.get(destination="Seaside, OR")
+        self.assertEqual(stop.geo_location, "45.9932, -123.9226")
+        self.assertContains(self.client.get(reverse("admin_itinerary")), "data-trip-map")
+
+        invalid = self.client.post(
+            reverse("admin_itinerary"),
+            {
+                "action": "create",
+                "day_number": 2,
+                "stop_date": "2027-05-03",
+                "destination": "Invalid coordinates",
+                "geo_location": "91, -123.9226",
+            },
+        )
+        self.assertEqual(invalid.status_code, 400)
+        self.assertFalse(ItineraryStop.objects.filter(destination="Invalid coordinates").exists())
+
+    def test_itinerary_workbook_import_is_repeatable_and_preserves_coordinates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workbook_path = f"{directory}/planner.xlsx"
+            workbook = Workbook()
+            itinerary = workbook.active
+            itinerary.title = "2027 Master Itinerary"
+            itinerary.append(
+                [
+                    1, datetime(2027, 5, 1), "Seaside, OR", "Thousand Trails Seaside",
+                    "Fort Stevens State Park", "5/1", "5/3", "Portland -> Seaside", "~1.5 hr",
+                    "RV site", "Confirm at booking", "TT member", "~Mar 2", "Cannon Beach",
+                    "Beach", "Fuel in Astoria", "Campground", "Cool/mild", "Easy tow", "BOOK",
+                ]
+            )
+            notes = workbook.create_sheet("Planning Notes")
+            notes.append(["Planning assumptions", None])
+            notes.append(["Daily towing limit", "Target maximum 5 hours."])
+            sources = workbook.create_sheet("Sources")
+            sources.append(["Source", "URL", "Use"])
+            sources.append(["Reservation guide", "https://example.com/reservations", "Booking rules"])
+            workbook.save(workbook_path)
+
+            call_command("import_itinerary_workbook", source=workbook_path, stdout=StringIO())
+            stop = ItineraryStop.objects.get(destination="Seaside, OR")
+            self.assertEqual(stop.stop_date, date(2027, 5, 1))
+            self.assertEqual(stop.check_out, date(2027, 5, 3))
+            self.assertEqual(stop.price_or_membership, "TT member")
+            self.assertEqual(ItineraryReference.objects.count(), 2)
+
+            stop.geo_location = "45.9932, -123.9226"
+            stop.save(update_fields=["geo_location"])
+            call_command("import_itinerary_workbook", source=workbook_path, stdout=StringIO())
+            self.assertEqual(ItineraryStop.objects.count(), 1)
+            self.assertEqual(ItineraryStop.objects.get().geo_location, "45.9932, -123.9226")
 
     def test_admin_can_create_user_and_role(self):
         self.client.force_login(self.admin)

@@ -1,19 +1,25 @@
+from pathlib import Path
+
+import markdown
 from django.contrib import messages
 from django.contrib.auth import get_user_model, password_validation
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.models import Group
 from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
-from .forms import ManagedUserForm, OrganizationForm, RoleForm
-from .models import Organization
+from .forms import ItineraryStopForm, ManagedUserForm, OrganizationForm, RoleForm
+from .models import ItineraryReference, ItineraryStop, Organization
 from .views import is_admin
 
 User = get_user_model()
 USERS_URL = "admin_users"
 ROLES_URL = "admin_roles"
 ORGS_URL = "admin_organizations"
+DATA_DICT_PATH = Path(__file__).resolve().parents[1] / "DataDict.md"
+ITINERARY_URL = "admin_itinerary"
 
 
 def _error(request, message, route):
@@ -175,3 +181,82 @@ def _organization_context(form=None):
         "organizations": Organization.objects.all(),
         "create_form": form or OrganizationForm(),
     }
+
+
+@user_passes_test(is_admin, login_url="home")
+@require_http_methods(["GET"])
+def admin_data_dictionary(request):
+    data_dictionary = DATA_DICT_PATH.read_text(encoding="utf-8")
+    rendered_data_dictionary = markdown.markdown(data_dictionary, extensions=["tables"])
+    return render(
+        request,
+        "storefront/admin_data_dictionary.html",
+        {"data_dictionary_html": rendered_data_dictionary},
+    )
+
+
+@user_passes_test(is_admin, login_url="home")
+@require_http_methods(["GET", "POST"])
+def admin_itinerary(request):
+    create_form = ItineraryStopForm()
+    editing_stop = None
+    edit_form = None
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "create":
+            create_form = ItineraryStopForm(request.POST)
+            if create_form.is_valid():
+                create_form.save()
+                return _success(request, "Itinerary stop added.", ITINERARY_URL)
+        elif action == "update":
+            editing_stop = get_object_or_404(ItineraryStop, pk=request.POST.get("stop_id"))
+            edit_form = ItineraryStopForm(request.POST, instance=editing_stop)
+            if edit_form.is_valid():
+                edit_form.save()
+                return _success(request, "Itinerary stop updated.", ITINERARY_URL)
+        elif action == "delete":
+            stop = get_object_or_404(ItineraryStop, pk=request.POST.get("stop_id"))
+            stop.delete()
+            return _success(request, "Itinerary stop deleted.", ITINERARY_URL)
+        else:
+            messages.error(request, "Choose a valid itinerary action.")
+
+    stop_rows = []
+    for stop in ItineraryStop.objects.all():
+        stop_rows.append(
+            {
+                "stop": stop,
+                "form": edit_form if stop == editing_stop else ItineraryStopForm(instance=stop),
+            }
+        )
+
+    map_events = []
+    for stop in ItineraryStop.objects.exclude(geo_location=""):
+        try:
+            latitude, longitude = (float(value.strip()) for value in stop.geo_location.split(","))
+        except (TypeError, ValueError):
+            continue
+        if -90 <= latitude <= 90 and -180 <= longitude <= 180:
+            map_events.append(
+                {
+                    "lat": latitude,
+                    "lng": longitude,
+                    "title": stop.destination,
+                    "date": stop.stop_date.isoformat(),
+                    "url": f"{reverse(ITINERARY_URL)}#stop-{stop.pk}",
+                }
+            )
+
+    return render(
+        request,
+        "storefront/admin_itinerary.html",
+        {
+            "stop_rows": stop_rows,
+            "create_form": create_form,
+            "assumptions": ItineraryReference.objects.filter(reference_type=ItineraryReference.ASSUMPTION),
+            "sources": ItineraryReference.objects.filter(reference_type=ItineraryReference.SOURCE),
+            "map_events": map_events,
+        },
+        status=400 if (not create_form.is_valid() or (edit_form and not edit_form.is_valid())) and request.method == "POST" else 200,
+    )

@@ -18,4 +18,6 @@ urlpatterns = [
     path("admin/users/", admin_views.admin_users, name="admin_users"),
     path("admin/roles/", admin_views.admin_roles, name="admin_roles"),
     path("admin/orgs/", admin_views.admin_organizations, name="admin_organizations"),
+    path("admin/data-dictionary/", admin_views.admin_data_dictionary, name="admin_data_dictionary"),
+    path("admin/itinerary/", admin_views.admin_itinerary, name="admin_itinerary"),
 ]

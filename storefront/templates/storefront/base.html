@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f3ed">
   <title>{% block title %}Joe's Trip{% endblock %} | Joe's Trip</title>
-  <link rel="stylesheet" href="{% static 'storefront/trip.css' %}">
+  <link rel="stylesheet" href="{% static 'storefront/trip.css' %}?v=20261017-nav">
   {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -17,7 +17,7 @@
         <a href="{% url 'trip_index' %}">2027 Journal</a>
         {% if site_can_see_eggs %}<a href="{% url 'eggs' %}">EGGS</a>{% endif %}
         {% if site_is_admin %}
-          <details class="nav-menu"><summary>Admin <span aria-hidden="true">⌄</span></summary><div class="menu-panel"><a href="{% url 'admin_users' %}">Users</a><a href="{% url 'admin_roles' %}">Roles</a><a href="{% url 'admin_organizations' %}">Organizations</a></div></details>
+          <details class="nav-menu"><summary>Admin <span aria-hidden="true">⌄</span></summary><div class="menu-panel"><a href="{% url 'admin_users' %}">Users</a><a href="{% url 'admin_roles' %}">Roles</a><a href="{% url 'admin_organizations' %}">Organizations</a><a href="{% url 'admin_itinerary' %}">Itinerary Planner</a><a href="{% url 'admin_data_dictionary' %}">Data Dictionary</a></div></details>
         {% endif %}
       </nav>
       <details class="account-menu">
@@ -42,5 +42,6 @@
   <main>{% block content %}{% endblock %}</main>
   <footer class="site-footer"><span>JOE'S TRIP <span class="footer-dot">/</span> 2027</span><a href="{% url 'home' %}">Back to home ↑</a></footer>
   <script src="{% static 'storefront/site.js' %}" defer></script>
+  {% block extra_scripts %}{% endblock %}
 </body>
 </html>

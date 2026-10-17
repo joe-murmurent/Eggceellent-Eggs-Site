@@ -130,6 +130,25 @@ def change_password(request):
 @login_required(login_url="home")
 def trip_index(request):
     entries = TripEntry.objects.all().prefetch_related("files")
+    map_events = []
+    for entry in entries.order_by("event_date", "pk"):
+        if not entry.geo_location:
+            continue
+        try:
+            latitude, longitude = (float(value.strip()) for value in entry.geo_location.split(","))
+        except (TypeError, ValueError):
+            continue
+        if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+            continue
+        map_events.append(
+            {
+                "lat": latitude,
+                "lng": longitude,
+                "title": entry.event_title,
+                "date": entry.event_date.isoformat(),
+                "url": reverse("trip_entry", args=[entry.pk]),
+            }
+        )
     return render(
         request,
         "storefront/trip_index.html",
@@ -138,6 +157,7 @@ def trip_index(request):
             "is_admin": is_admin(request.user),
             "error": request.GET.get("error"),
             "create_form": TripEntryForm(),
+            "map_events": map_events,
         },
     )
 

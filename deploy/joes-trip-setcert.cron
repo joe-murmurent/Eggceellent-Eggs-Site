@@ -1,0 +1,2 @@
+CRON_TZ=America/Los_Angeles
+0 1 * * * root /usr/bin/certbot renew --quiet >> /var/log/joes-trip-certbot.log 2>&1
