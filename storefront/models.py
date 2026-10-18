@@ -55,6 +55,10 @@ class TripEntry(models.Model):
 
 
 class ItineraryStop(models.Model):
+    BOOK = "Book"
+    BOOKED = "Booked"
+    BOOKING_STATUSES = [(BOOK, "Book"), (BOOKED, "Booked")]
+
     day_number = models.PositiveSmallIntegerField()
     stop_date = models.DateField()
     destination = models.CharField(max_length=180)
@@ -74,7 +78,8 @@ class ItineraryStop(models.Model):
     stop_category = models.CharField(max_length=100, blank=True)
     weather = models.TextField(blank=True)
     towing_notes = models.TextField(blank=True)
-    booking_status = models.CharField(max_length=40, blank=True)
+    booking_status = models.CharField(max_length=40, choices=BOOKING_STATUSES, default=BOOK)
+    booking_confirmation = models.CharField(max_length=100, blank=True)
     geo_location = models.CharField(max_length=64, blank=True, default="")
 
     class Meta:

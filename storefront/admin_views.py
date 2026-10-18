@@ -1,16 +1,18 @@
 from pathlib import Path
+from datetime import timedelta
 
 import markdown
 from django.contrib import messages
 from django.contrib.auth import get_user_model, password_validation
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.models import Group
+from django.db import transaction
 from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
-from .forms import ItineraryStopForm, ManagedUserForm, OrganizationForm, RoleForm
+from .forms import ItineraryCollisionForm, ItineraryStopForm, ManagedUserForm, OrganizationForm, RoleForm
 from .models import ItineraryReference, ItineraryStop, Organization
 from .views import is_admin
 
@@ -195,12 +197,37 @@ def admin_data_dictionary(request):
     )
 
 
+def _shift_unbooked_after(after_date, days, exclude_pk):
+    if not days:
+        return
+    delta = timedelta(days=days)
+    later_stops = (
+        ItineraryStop.objects.filter(stop_date__gt=after_date)
+        .exclude(pk=exclude_pk)
+        .exclude(booking_status=ItineraryStop.BOOKED)
+    )
+    for later in later_stops:
+        later.stop_date += delta
+        if later.check_in:
+            later.check_in += delta
+        if later.check_out:
+            later.check_out += delta
+        later.save(update_fields=["stop_date", "check_in", "check_out"])
+
+
+def _stop_length_days(stop):
+    if stop.check_in and stop.check_out and stop.check_out > stop.check_in:
+        return (stop.check_out - stop.check_in).days
+    return 1
+
+
 @user_passes_test(is_admin, login_url="home")
 @require_http_methods(["GET", "POST"])
 def admin_itinerary(request):
     create_form = ItineraryStopForm()
     editing_stop = None
     edit_form = None
+    collision_edit_form = None
 
     if request.method == "POST":
         action = request.POST.get("action")
@@ -211,25 +238,50 @@ def admin_itinerary(request):
                 return _success(request, "Itinerary stop added.", ITINERARY_URL)
         elif action == "update":
             editing_stop = get_object_or_404(ItineraryStop, pk=request.POST.get("stop_id"))
-            edit_form = ItineraryStopForm(request.POST, instance=editing_stop)
-            if edit_form.is_valid():
-                edit_form.save()
+            old_date = editing_stop.stop_date
+            form_class = ItineraryCollisionForm if request.POST.get("form_type") == "collision" else ItineraryStopForm
+            submitted_form = form_class(request.POST, instance=editing_stop)
+            if form_class is ItineraryCollisionForm:
+                collision_edit_form = submitted_form
+            else:
+                edit_form = submitted_form
+            if submitted_form.is_valid():
+                with transaction.atomic():
+                    saved = submitted_form.save()
+                    _shift_unbooked_after(old_date, (saved.stop_date - old_date).days, saved.pk)
                 return _success(request, "Itinerary stop updated.", ITINERARY_URL)
         elif action == "delete":
             stop = get_object_or_404(ItineraryStop, pk=request.POST.get("stop_id"))
-            stop.delete()
+            with transaction.atomic():
+                _shift_unbooked_after(stop.stop_date, -_stop_length_days(stop), stop.pk)
+                stop.delete()
             return _success(request, "Itinerary stop deleted.", ITINERARY_URL)
         else:
             messages.error(request, "Choose a valid itinerary action.")
 
     stop_rows = []
-    for stop in ItineraryStop.objects.all():
+    all_stops = list(ItineraryStop.objects.all())
+    for stop in all_stops:
         stop_rows.append(
             {
                 "stop": stop,
-                "form": edit_form if stop == editing_stop else ItineraryStopForm(instance=stop),
+                "form": edit_form if stop == editing_stop and edit_form else ItineraryStopForm(instance=stop),
             }
         )
+
+    date_counts = {}
+    for stop in all_stops:
+        date_counts[stop.stop_date] = date_counts.get(stop.stop_date, 0) + 1
+    collision_rows = [
+        {
+            "stop": stop,
+            "form": collision_edit_form
+            if stop == editing_stop and collision_edit_form
+            else ItineraryCollisionForm(instance=stop),
+        }
+        for stop in all_stops
+        if date_counts[stop.stop_date] > 1
+    ]
 
     map_events = []
     for stop in ItineraryStop.objects.exclude(geo_location=""):
@@ -253,10 +305,11 @@ def admin_itinerary(request):
         "storefront/admin_itinerary.html",
         {
             "stop_rows": stop_rows,
+            "collision_rows": collision_rows,
             "create_form": create_form,
             "assumptions": ItineraryReference.objects.filter(reference_type=ItineraryReference.ASSUMPTION),
             "sources": ItineraryReference.objects.filter(reference_type=ItineraryReference.SOURCE),
             "map_events": map_events,
         },
-        status=400 if (not create_form.is_valid() or (edit_form and not edit_form.is_valid())) and request.method == "POST" else 200,
+        status=400 if (not create_form.is_valid() or (edit_form and not edit_form.is_valid()) or (collision_edit_form and not collision_edit_form.is_valid())) and request.method == "POST" else 200,
     )

@@ -80,8 +80,14 @@ class Command(BaseCommand):
                 "stop_category": _text(row[16]),
                 "weather": _text(row[17]),
                 "towing_notes": _text(row[18]),
-                "booking_status": _text(row[19]),
+                "booking_status": (
+                    ItineraryStop.BOOKED
+                    if _text(row[19]).lower() in ("booked", "final")
+                    else ItineraryStop.BOOK
+                ),
             }
+            if len(row) > 20:
+                values["booking_confirmation"] = _text(row[20])
             stop, was_created = ItineraryStop.objects.get_or_create(
                 stop_date=stop_date,
                 destination=values["destination"],

@@ -17,7 +17,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from .forms import SignInForm, TripEntryForm
-from .models import VIDEO_FILE_SUFFIXES, TripEntry, TripEntryFile
+from .models import VIDEO_FILE_SUFFIXES, ItineraryStop, TripEntry, TripEntryFile
 
 MAX_FILES_PER_ENTRY = 8
 UPLOAD_CHUNK_SIZE = 5 * 1024 * 1024
@@ -130,6 +130,7 @@ def change_password(request):
 @login_required(login_url="home")
 def trip_index(request):
     entries = TripEntry.objects.all().prefetch_related("files")
+    admin_user = is_admin(request.user)
     map_events = []
     for entry in entries.order_by("event_date", "pk"):
         if not entry.geo_location:
@@ -149,15 +150,36 @@ def trip_index(request):
                 "url": reverse("trip_entry", args=[entry.pk]),
             }
         )
+    itinerary_map_events = []
+    for stop in ItineraryStop.objects.order_by("stop_date", "day_number", "pk"):
+        if not stop.geo_location:
+            continue
+        try:
+            latitude, longitude = (float(value.strip()) for value in stop.geo_location.split(","))
+        except (TypeError, ValueError):
+            continue
+        if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+            continue
+        itinerary_event = {
+            "lat": latitude,
+            "lng": longitude,
+            "title": stop.destination,
+            "date": stop.stop_date.isoformat(),
+        }
+        if admin_user:
+            itinerary_event["url"] = reverse("admin_itinerary") + f"#stop-{stop.pk}"
+        itinerary_map_events.append(itinerary_event)
     return render(
         request,
         "storefront/trip_index.html",
         {
             "entries": entries,
-            "is_admin": is_admin(request.user),
+            "is_admin": admin_user,
             "error": request.GET.get("error"),
             "create_form": TripEntryForm(),
             "map_events": map_events,
+            "itinerary_map_events": itinerary_map_events,
+            "has_map_events": bool(map_events or itinerary_map_events),
         },
     )
 

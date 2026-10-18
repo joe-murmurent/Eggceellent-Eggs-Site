@@ -73,7 +73,8 @@ class ItineraryStopForm(forms.ModelForm):
             "day_number", "stop_date", "destination", "preferred_campground", "alternate_campground",
             "check_in", "check_out", "route", "drive_time", "site_type", "booking_requirements",
             "price_or_membership", "booking_opening_estimate", "attractions", "landscape",
-            "fuel_errands", "stop_category", "weather", "towing_notes", "booking_status", "geo_location",
+            "fuel_errands", "stop_category", "weather", "towing_notes", "booking_status",
+            "booking_confirmation", "geo_location",
         ]
         widgets = {
             "stop_date": forms.DateInput(attrs={"type": "date"}),
@@ -88,6 +89,23 @@ class ItineraryStopForm(forms.ModelForm):
 
     def clean_geo_location(self):
         return normalize_geo_location(self.cleaned_data["geo_location"])
+
+
+class ItineraryCollisionForm(forms.ModelForm):
+    class Meta:
+        model = ItineraryStop
+        fields = ["stop_date", "destination", "check_in", "check_out", "booking_status"]
+        widgets = {
+            "stop_date": forms.DateInput(attrs={"type": "date"}),
+            "check_in": forms.DateInput(attrs={"type": "date"}),
+            "check_out": forms.DateInput(attrs={"type": "date"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            for field in self.fields.values():
+                field.widget.attrs["form"] = f"collision-form-{self.instance.pk}"
 
 
 class OrganizationForm(forms.ModelForm):

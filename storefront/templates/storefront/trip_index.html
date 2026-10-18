@@ -1,14 +1,23 @@
 {% extends 'storefront/base.html' %}
 {% load static %}
 {% block title %}Trip journal{% endblock %}
-{% block extra_head %}{% if map_events %}<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.css">{% endif %}{% endblock %}
+{% block extra_head %}{% if has_map_events %}<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.css">{% endif %}{% endblock %}
 {% block content %}
 <section class="content-shell">
   <div class="page-heading"><div><p class="eyebrow">JOE'S 2027 TRIP</p><h1>Trip journal</h1></div></div>
+  {% if has_map_events %}
+  <details class="route-map-section" data-map-disclosure open aria-labelledby="route-map-title">
+    <summary class="list-heading"><h2 id="route-map-title">Route map</h2><span>{{ map_events|length }} located event{{ map_events|length|pluralize }}</span><span class="summary-arrow" aria-hidden="true">⌄</span></summary>
+    {% if itinerary_map_events %}<label class="map-layer-toggle"><input type="checkbox" data-itinerary-toggle checked><span class="map-layer-swatch" aria-hidden="true"></span><span>Itinerary pins ({{ itinerary_map_events|length }})</span></label>{% endif %}
+    <div id="trip-map" class="trip-map" data-trip-map data-map-mode="trip" role="region" aria-label="Map of trip events and itinerary destinations"></div>{{ map_events|json_script:"trip-map-events" }}{{ itinerary_map_events|json_script:"itinerary-map-events" }}
+    <p class="map-status" data-map-status role="status" aria-live="polite">Loading map…</p>
+  </details>
+  {% else %}
   <section class="route-map-section" aria-labelledby="route-map-title">
-    <div class="list-heading"><h2 id="route-map-title">Route map</h2><span>{{ map_events|length }} located event{{ map_events|length|pluralize }}</span></div>
-    {% if map_events %}<div id="trip-map" class="trip-map" data-trip-map role="region" aria-label="Map of trip events in date order"></div>{{ map_events|json_script:"trip-map-events" }}<p class="map-status" data-map-status role="status" aria-live="polite">Loading map…</p>{% else %}<p class="map-empty">Add event coordinates to show them on the route map.</p>{% endif %}
+    <div class="list-heading"><h2 id="route-map-title">Route map</h2><span>0 located events</span></div>
+    <p class="map-empty">Add event coordinates to show them on the route map.</p>
   </section>
+  {% endif %}
   {% if error %}<div class="form-alert" role="alert">{% if error == 'video-format-not-allowed' %}Only MP4 video format is allowed. Remove other video formats and select an MP4 file.{% elif error == 'too-many-files' %}An event can have up to 8 files.{% elif error == 'upload-failed' %}The event was saved, but one or more files did not finish uploading. Add the remaining files from the event page.{% elif error == 'invalid-entry' %}Enter an event title and a valid date.{% elif error == 'file-description-invalid' %}File descriptions must be 65,535 characters or fewer.{% else %}The entry or its files could not be saved. Try again.{% endif %}</div>{% endif %}
   <details class="entry-create" id="new-entry"><summary><span class="summary-icon" aria-hidden="true">+</span><span><strong>Add an event</strong><small>Capture a date, a story, and any trip files.</small></span><span class="summary-arrow" aria-hidden="true">⌄</span></summary>
     <form action="{% url 'create_trip_entry' %}" method="post" enctype="multipart/form-data" class="entry-form" data-upload-form>{% csrf_token %}
@@ -25,4 +34,4 @@
   {% else %}<div class="empty-state"><span class="empty-mark" aria-hidden="true">+</span><h2>No trip events yet.</h2><p>When you add the first event, it will show up here.</p></div>{% endif %}
 </section>
 {% endblock %}
-{% block extra_scripts %}{% if map_events %}<script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js"></script><script src="{% static 'storefront/map.js' %}" defer></script>{% endif %}{% endblock %}
+{% block extra_scripts %}{% if has_map_events %}<script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js"></script><script src="{% static 'storefront/map.js' %}" defer></script>{% endif %}{% endblock %}

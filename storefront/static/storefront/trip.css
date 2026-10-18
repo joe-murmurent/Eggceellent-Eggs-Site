@@ -130,8 +130,17 @@ h1, .latest-panel h2 { font-family: var(--serif); font-weight: 400; }
 .list-heading > span { color: var(--muted); font-size: 10px; font-weight: 500; letter-spacing: .02em; }
 .event-table-wrap, .table-scroll { overflow-x: auto; border: 1px solid var(--line); background: var(--white); }
 .route-map-section { margin: 0 0 35px; }
+.route-map-section > summary { padding-bottom: 12px; cursor: pointer; list-style: none; }
+.route-map-section > summary::-webkit-details-marker { display: none; }
+.route-map-section[open] > summary .summary-arrow { transform: rotate(180deg); }
+.map-layer-toggle { width: fit-content; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--ink); font-size: 11px; }
+.map-layer-toggle input { width: 16px; height: 16px; margin: 0; accent-color: var(--green); }
+.map-layer-swatch { width: 13px; height: 13px; flex: 0 0 auto; border: 1px solid #aa8610; border-radius: 50%; background: #e6bd32; }
 .trip-map { width: 100%; height: 420px; border: 1px solid var(--line); background: #e8e7e1; }
-.trip-map-marker { width: 28px; height: 28px; display: grid; place-items: center; border: 2px solid #fff; border-radius: 50%; background: var(--orange); box-shadow: 0 1px 5px rgba(25, 25, 20, .35); color: #fff; cursor: pointer; font-size: 12px; font-weight: 700; }
+.trip-map-marker, .itinerary-map-marker { width: 28px; height: 28px; display: grid; place-items: center; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 1px 5px rgba(25, 25, 20, .35); cursor: pointer; font-size: 12px; font-weight: 700; }
+.trip-map-marker { z-index: var(--map-marker-z-index) !important; background: var(--green); color: #fff; }
+.itinerary-map-marker { z-index: var(--map-marker-z-index) !important; background: #e6bd32; color: var(--ink); }
+.trip-map-marker[hidden], .itinerary-map-marker[hidden] { display: none; }
 .map-status, .map-empty, .map-setup-note { margin: 9px 0 0; color: var(--muted); font-size: 11px; }
 .map-setup-note { padding: 12px 15px; border-left: 2px solid var(--orange); background: rgba(255,254,250,.72); }
 .map-setup-note code { color: var(--ink); }
@@ -234,6 +243,7 @@ h1, .latest-panel h2 { font-family: var(--serif); font-weight: 400; }
 .inline-create .field { flex: 1; }
 .admin-table { min-width: 760px; }
 .admin-table td input:not([type=checkbox]) { width: 100%; min-width: 95px; padding: 7px 8px; border: 1px solid var(--line); background: white; font-size: 10px; }
+.admin-table td select { width: 100%; padding: 7px 8px; border: 1px solid var(--line); background: white; font-size: 10px; }
 .admin-table td input:focus { outline: 1px solid var(--orange); }
 .admin-table td:first-child { font-weight: 600; }
 .role-checks { margin: 15px 0 0; padding: 12px; border: 1px solid var(--line); }

@@ -7,11 +7,11 @@
   <div class="page-heading"><div><p class="eyebrow">ADMINISTRATION</p><h1>Itinerary Planner</h1></div><span class="admin-count">{{ stop_rows|length }} destinations</span></div>
 
   {% if map_events %}
-  <section class="route-map-section" aria-labelledby="itinerary-map-title">
-    <div class="list-heading"><h2 id="itinerary-map-title">Route map</h2><span>{{ map_events|length }} located destination{{ map_events|length|pluralize }}</span></div>
-    <div id="trip-map" class="trip-map" data-trip-map role="region" aria-label="Map of itinerary destinations in date order"></div>{{ map_events|json_script:"trip-map-events" }}
+  <details class="route-map-section" data-map-disclosure open aria-labelledby="itinerary-map-title">
+    <summary class="list-heading"><h2 id="itinerary-map-title">Route map</h2><span>{{ map_events|length }} located destination{{ map_events|length|pluralize }}</span><span class="summary-arrow" aria-hidden="true">⌄</span></summary>
+    <div id="trip-map" class="trip-map" data-trip-map data-map-mode="itinerary" role="region" aria-label="Map of itinerary destinations in date order"></div>{{ map_events|json_script:"itinerary-map-events" }}
     <p class="map-status" data-map-status role="status" aria-live="polite">Loading map…</p>
-  </section>
+  </details>
   {% else %}<p class="map-empty">Add coordinates to itinerary stops to display their route map.</p>{% endif %}
 
   {% if assumptions %}<details class="planner-notes"><summary><strong>Planning assumptions</strong><span>{{ assumptions|length }} notes</span></summary><dl>{% for item in assumptions %}<div><dt>{{ item.title }}</dt><dd>{{ item.detail }}</dd></div>{% endfor %}</dl></details>{% endif %}
@@ -22,6 +22,20 @@
       <div class="form-actions"><button class="button button-dark" type="submit">Add destination <span aria-hidden="true">+</span></button></div>
     </form>
   </details>
+
+  {% if collision_rows %}
+  <section class="admin-section itinerary-collisions" aria-labelledby="collision-title">
+    <div class="list-heading"><h2 id="collision-title">Collisions</h2><span>{{ collision_rows|length }} destinations share a date</span></div>
+    <div class="table-scroll"><table class="admin-table">
+      <thead><tr><th>Date</th><th>Destination</th><th>Check in</th><th>Check out</th><th>Booking status</th><th></th></tr></thead>
+      <tbody>{% for row in collision_rows %}
+        <tr>
+          {% for field in row.form %}<td>{{ field }}{% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</td>{% endfor %}
+          <td><form id="collision-form-{{ row.stop.pk }}" method="post">{% csrf_token %}<input type="hidden" name="action" value="update"><input type="hidden" name="form_type" value="collision"><input type="hidden" name="stop_id" value="{{ row.stop.pk }}"><button class="small-button" type="submit">Save</button></form></td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+  </section>
+  {% endif %}
 
   <div class="list-heading itinerary-list-heading"><h2>Route itinerary</h2><span>Chronological order</span></div>
   <div class="itinerary-list">

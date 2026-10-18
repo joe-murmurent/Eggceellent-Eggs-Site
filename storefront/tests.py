@@ -331,6 +331,7 @@ class TripSiteTests(TestCase):
             event_date=date(2027, 6, 10),
             event_title="First day",
             event_description="A new city.",
+            geo_location="51.5072, -0.1276",
         )
         TripEntryFile.objects.create(
             trip_entry=entry,
@@ -360,6 +361,9 @@ class TripSiteTests(TestCase):
         ]:
             with self.subTest(route=route):
                 self.assertEqual(self.client.get(reverse(route)).status_code, 200)
+        journal = self.client.get(reverse("trip_index"))
+        self.assertContains(journal, 'data-map-disclosure open')
+        self.assertContains(journal, 'data-trip-map')
         detail = self.client.get(reverse("trip_entry", args=[entry.pk]))
         self.assertContains(detail, "First day")
         self.assertContains(detail, "arrival.jpg")
@@ -368,6 +372,39 @@ class TripSiteTests(TestCase):
         self.assertContains(detail, "data-video-open")
         self.assertContains(detail, "controls")
         self.assertContains(detail, "data-upload-overall")
+
+    def test_trip_map_includes_itinerary_overlay_for_all_viewers(self):
+        ItineraryStop.objects.create(
+            day_number=1,
+            stop_date=date(2027, 5, 1),
+            destination="Seaside, OR",
+            geo_location="45.9932, -123.9226",
+        )
+
+        self.client.force_login(self.viewer)
+        viewer_response = self.client.get(reverse("trip_index"))
+        self.assertContains(viewer_response, 'data-itinerary-toggle checked')
+        self.assertContains(viewer_response, "45.9932")
+        viewer_itinerary_events = viewer_response.context["itinerary_map_events"]
+        self.assertEqual(len(viewer_itinerary_events), 1)
+        self.assertNotIn("url", viewer_itinerary_events[0])
+
+        self.client.force_login(self.admin)
+        admin_response = self.client.get(reverse("trip_index"))
+        self.assertContains(admin_response, 'data-itinerary-toggle checked')
+        self.assertContains(admin_response, 'data-map-mode="trip"')
+        self.assertEqual(
+            admin_response.context["itinerary_map_events"],
+            [
+                {
+                    "lat": 45.9932,
+                    "lng": -123.9226,
+                    "title": "Seaside, OR",
+                    "date": "2027-05-01",
+                    "url": f"{reverse('admin_itinerary')}#stop-1",
+                }
+            ],
+        )
 
     def test_itinerary_planner_is_admin_only_and_validates_coordinates(self):
         self.client.force_login(self.viewer)
@@ -380,6 +417,7 @@ class TripSiteTests(TestCase):
         page = self.client.get(reverse("admin_itinerary"))
         self.assertEqual(page.status_code, 200)
         self.assertContains(page, "Add a destination")
+        self.assertContains(page, "Booking confirmation")
 
         created = self.client.post(
             reverse("admin_itinerary"),
@@ -389,13 +427,17 @@ class TripSiteTests(TestCase):
                 "stop_date": "2027-05-01",
                 "destination": "Seaside, OR",
                 "preferred_campground": "Fort Stevens State Park",
+                "booking_confirmation": "CONF-123",
+                "booking_status": "Book",
                 "geo_location": " 45.9932, -123.9226 ",
             },
         )
         self.assertRedirects(created, reverse("admin_itinerary"))
         stop = ItineraryStop.objects.get(destination="Seaside, OR")
         self.assertEqual(stop.geo_location, "45.9932, -123.9226")
+        self.assertEqual(stop.booking_confirmation, "CONF-123")
         self.assertContains(self.client.get(reverse("admin_itinerary")), "data-trip-map")
+        self.assertContains(self.client.get(reverse("admin_itinerary")), 'data-map-disclosure open')
 
         invalid = self.client.post(
             reverse("admin_itinerary"),
@@ -410,6 +452,34 @@ class TripSiteTests(TestCase):
         self.assertEqual(invalid.status_code, 400)
         self.assertFalse(ItineraryStop.objects.filter(destination="Invalid coordinates").exists())
 
+    def test_itinerary_date_change_and_delete_shift_unbooked_stops(self):
+        self.client.force_login(self.admin)
+        first = ItineraryStop.objects.create(day_number=1, stop_date=date(2027, 5, 1), destination="A")
+        unbooked = ItineraryStop.objects.create(day_number=2, stop_date=date(2027, 5, 3), destination="B")
+        booked = ItineraryStop.objects.create(
+            day_number=3, stop_date=date(2027, 5, 5), destination="C", booking_status="Booked"
+        )
+        self.client.post(
+            reverse("admin_itinerary"),
+            {
+                "action": "update", "form_type": "collision", "stop_id": first.pk,
+                "stop_date": "2027-05-02", "destination": "A", "booking_status": "Book",
+            },
+        )
+        unbooked.refresh_from_db()
+        booked.refresh_from_db()
+        self.assertEqual(unbooked.stop_date, date(2027, 5, 4))
+        self.assertEqual(booked.stop_date, date(2027, 5, 5))
+
+        response = self.client.get(reverse("admin_itinerary"))
+        self.assertNotContains(response, "Collisions")
+        self.client.post(reverse("admin_itinerary"), {"action": "delete", "stop_id": first.pk})
+        unbooked.refresh_from_db()
+        self.assertEqual(unbooked.stop_date, date(2027, 5, 3))
+        booked.stop_date = date(2027, 5, 3)
+        booked.save()
+        self.assertContains(self.client.get(reverse("admin_itinerary")), "Collisions")
+
     def test_itinerary_workbook_import_is_repeatable_and_preserves_coordinates(self):
         with tempfile.TemporaryDirectory() as directory:
             workbook_path = f"{directory}/planner.xlsx"
@@ -422,6 +492,7 @@ class TripSiteTests(TestCase):
                     "Fort Stevens State Park", "5/1", "5/3", "Portland -> Seaside", "~1.5 hr",
                     "RV site", "Confirm at booking", "TT member", "~Mar 2", "Cannon Beach",
                     "Beach", "Fuel in Astoria", "Campground", "Cool/mild", "Easy tow", "BOOK",
+                    "RES-2027-001",
                 ]
             )
             notes = workbook.create_sheet("Planning Notes")
@@ -437,6 +508,7 @@ class TripSiteTests(TestCase):
             self.assertEqual(stop.stop_date, date(2027, 5, 1))
             self.assertEqual(stop.check_out, date(2027, 5, 3))
             self.assertEqual(stop.price_or_membership, "TT member")
+            self.assertEqual(stop.booking_confirmation, "RES-2027-001")
             self.assertEqual(ItineraryReference.objects.count(), 2)
 
             stop.geo_location = "45.9932, -123.9226"
