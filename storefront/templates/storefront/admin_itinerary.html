@@ -54,6 +54,7 @@
   </div>
 
   {% if sources %}<section class="admin-section planner-sources"><h2>Workbook sources</h2><ul>{% for item in sources %}<li><a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a><span>{{ item.detail }}</span></li>{% endfor %}</ul></section>{% endif %}
+  <button type="button" class="return-to-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" aria-label="Return to top">&uarr; Return to top</button>
 </section>
 {% endblock %}
-{% block extra_scripts %}{% if map_events %}<script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js"></script><script src="{% static 'storefront/map.js' %}" defer></script>{% endif %}{% endblock %}
+{% block extra_scripts %}<script>(function(){var d=location.hash&&document.querySelector('details.itinerary-stop'+location.hash);if(d){d.open=true;d.scrollIntoView();}})();</script>{% if map_events %}<script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js"></script><script src="{% static 'storefront/map.js' %}" defer></script>{% endif %}{% endblock %}

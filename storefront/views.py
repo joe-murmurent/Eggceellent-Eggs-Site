@@ -147,7 +147,7 @@ def trip_index(request):
                 "lng": longitude,
                 "title": entry.event_title,
                 "date": entry.event_date.isoformat(),
-                "url": reverse("trip_entry", args=[entry.pk]),
+                "url": reverse("trip_entry", args=[entry.pk]) + ("?edit=1" if admin_user else ""),
             }
         )
     itinerary_map_events = []
@@ -403,6 +403,7 @@ def trip_entry(request, pk):
             "form": TripEntryForm(instance=entry),
             "error": request.GET.get("error"),
             "is_admin": is_admin(request.user),
+            "open_edit": is_admin(request.user) and request.GET.get("edit") == "1",
         },
     )
 
