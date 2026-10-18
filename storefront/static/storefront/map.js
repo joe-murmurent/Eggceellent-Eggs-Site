@@ -90,17 +90,27 @@
       const date = document.createElement("p");
       date.textContent = event.date;
       popupContent.append(title, date);
-      if (event.url) {
-        const link = document.createElement("a");
-        link.href = event.url;
-        link.textContent = "Open event";
-        popupContent.append(link);
-      }
 
-      new maplibregl.Marker({ element: markerElement })
+      const marker = new maplibregl.Marker({ element: markerElement })
         .setLngLat(coordinates[index])
-        .setPopup(new maplibregl.Popup({ offset: 18 }).setDOMContent(popupContent))
         .addTo(map);
+
+      if (event.url) {
+        markerElement.title = `${event.title} (${event.date})`;
+        markerElement.setAttribute("role", "link");
+        markerElement.tabIndex = 0;
+        markerElement.style.cursor = "pointer";
+        const openEvent = () => { window.location.href = event.url; };
+        markerElement.addEventListener("click", openEvent);
+        markerElement.addEventListener("keydown", (keyEvent) => {
+          if (keyEvent.key === "Enter" || keyEvent.key === " ") {
+            keyEvent.preventDefault();
+            openEvent();
+          }
+        });
+      } else {
+        marker.setPopup(new maplibregl.Popup({ offset: 18 }).setDOMContent(popupContent));
+      }
     });
 
     if (mapMode === "itinerary") {
