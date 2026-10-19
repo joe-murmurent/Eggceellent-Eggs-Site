@@ -45,7 +45,7 @@
       <div class="itinerary-stop-body">
         <form method="post" class="entry-form itinerary-edit-form">{% csrf_token %}<input type="hidden" name="action" value="update"><input type="hidden" name="stop_id" value="{{ row.stop.pk }}">
           <div class="form-grid">{% for field in row.form %}<label class="field{% if field.name == 'booking_requirements' or field.name == 'attractions' or field.name == 'fuel_errands' or field.name == 'weather' or field.name == 'towing_notes' %} field-wide{% endif %}">{{ field.label }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</label>{% endfor %}</div>
-          <div class="form-actions"><button class="small-button" type="submit">Save destination</button></div>
+          <div class="form-actions"><button class="small-button" type="submit">Save destination</button><button class="plain-button" type="button" onclick="this.form.reset();this.closest('details').open=false">Close without saving</button></div>
         </form>
         <form method="post" class="itinerary-delete-form" onsubmit="return confirm('Delete this itinerary destination?')">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="stop_id" value="{{ row.stop.pk }}"><button class="plain-button danger-text" type="submit">Delete destination</button></form>
       </div>
@@ -57,4 +57,4 @@
   <button type="button" class="return-to-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" aria-label="Return to top">&uarr; Return to top</button>
 </section>
 {% endblock %}
-{% block extra_scripts %}<script>(function(){var d=location.hash&&document.querySelector('details.itinerary-stop'+location.hash);if(d){d.open=true;d.scrollIntoView();}})();</script>{% if map_events %}<script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js"></script><script src="{% static 'storefront/map.js' %}" defer></script>{% endif %}{% endblock %}
+{% block extra_scripts %}<script>(function(){function o(){var d=location.hash&&document.querySelector('details.itinerary-stop'+location.hash);if(d){d.open=true;d.scrollIntoView();}}o();window.addEventListener('hashchange',o);})();</script>{% if map_events %}<script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js"></script><script src="{% static 'storefront/map.js' %}" defer></script>{% endif %}{% endblock %}

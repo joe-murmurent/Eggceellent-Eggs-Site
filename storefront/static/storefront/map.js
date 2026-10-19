@@ -100,7 +100,14 @@
         markerElement.setAttribute("role", "link");
         markerElement.tabIndex = 0;
         markerElement.style.cursor = "pointer";
-        const openEvent = () => { window.location.href = event.url; };
+        const openEvent = () => {
+          const target = new URL(event.url, window.location.href);
+          if (target.pathname === window.location.pathname && target.hash === window.location.hash) {
+            window.dispatchEvent(new HashChangeEvent("hashchange"));
+          } else {
+            window.location.href = event.url;
+          }
+        };
         markerElement.addEventListener("click", openEvent);
         markerElement.addEventListener("keydown", (keyEvent) => {
           if (keyEvent.key === "Enter" || keyEvent.key === " ") {
