@@ -87,6 +87,16 @@ class ItineraryStopForm(forms.ModelForm):
             "towing_notes": forms.Textarea(attrs={"rows": 2}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["day_number"].required = False
+        self.fields["day_number"].label = "Trip day"
+        self.fields["day_number"].help_text = "Calculated automatically from the trip start date."
+
+    def clean_day_number(self):
+        # Placeholder; the view recalculates every trip day after saving.
+        return self.cleaned_data.get("day_number") or 1
+
     def clean_geo_location(self):
         return normalize_geo_location(self.cleaned_data["geo_location"])
 

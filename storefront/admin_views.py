@@ -215,6 +215,18 @@ def _shift_unbooked_after(after_date, days, exclude_pk):
         later.save(update_fields=["stop_date", "check_in", "check_out"])
 
 
+def _renumber_days():
+    stops = list(ItineraryStop.objects.all())
+    if not stops:
+        return
+    trip_start = min(stop.stop_date for stop in stops)
+    for stop in stops:
+        day_number = (stop.stop_date - trip_start).days + 1
+        if stop.day_number != day_number:
+            stop.day_number = day_number
+            stop.save(update_fields=["day_number"])
+
+
 def _stop_length_days(stop):
     if stop.check_in and stop.check_out and stop.check_out > stop.check_in:
         return (stop.check_out - stop.check_in).days
@@ -234,11 +246,15 @@ def admin_itinerary(request):
         if action == "create":
             create_form = ItineraryStopForm(request.POST)
             if create_form.is_valid():
-                create_form.save()
+                with transaction.atomic():
+                    create_form.save()
+                    _renumber_days()
                 return _success(request, "Itinerary stop added.", ITINERARY_URL)
         elif action == "update":
             editing_stop = get_object_or_404(ItineraryStop, pk=request.POST.get("stop_id"))
             old_date = editing_stop.stop_date
+            old_check_in = editing_stop.check_in
+            old_check_out = editing_stop.check_out
             form_class = ItineraryCollisionForm if request.POST.get("form_type") == "collision" else ItineraryStopForm
             submitted_form = form_class(request.POST, instance=editing_stop)
             if form_class is ItineraryCollisionForm:
@@ -247,14 +263,28 @@ def admin_itinerary(request):
                 edit_form = submitted_form
             if submitted_form.is_valid():
                 with transaction.atomic():
+                    own_shift = timedelta(days=(editing_stop.stop_date - old_date).days)
+                    # Move check-in/out with the stop date unless they were edited too.
+                    if own_shift:
+                        if old_check_in and editing_stop.check_in == old_check_in:
+                            editing_stop.check_in += own_shift
+                        if old_check_out and editing_stop.check_out == old_check_out:
+                            editing_stop.check_out += own_shift
+                    elif old_check_in and editing_stop.check_in and editing_stop.check_in != old_check_in:
+                        editing_stop.stop_date = editing_stop.check_in
                     saved = submitted_form.save()
-                    _shift_unbooked_after(old_date, (saved.stop_date - old_date).days, saved.pk)
+                    shift_days = (saved.stop_date - old_date).days
+                    if not shift_days and old_check_out and saved.check_out:
+                        shift_days = (saved.check_out - old_check_out).days
+                    _shift_unbooked_after(old_date, shift_days, saved.pk)
+                    _renumber_days()
                 return _success(request, "Itinerary stop updated.", ITINERARY_URL)
         elif action == "delete":
             stop = get_object_or_404(ItineraryStop, pk=request.POST.get("stop_id"))
             with transaction.atomic():
                 _shift_unbooked_after(stop.stop_date, -_stop_length_days(stop), stop.pk)
                 stop.delete()
+                _renumber_days()
             return _success(request, "Itinerary stop deleted.", ITINERARY_URL)
         else:
             messages.error(request, "Choose a valid itinerary action.")

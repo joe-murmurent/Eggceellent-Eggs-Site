@@ -452,6 +452,73 @@ class TripSiteTests(TestCase):
         self.assertEqual(invalid.status_code, 400)
         self.assertFalse(ItineraryStop.objects.filter(destination="Invalid coordinates").exists())
 
+    def test_itinerary_check_out_change_shifts_unbooked_stops(self):
+        self.client.force_login(self.admin)
+        first = ItineraryStop.objects.create(
+            day_number=1, stop_date=date(2027, 5, 1), destination="A",
+            check_in=date(2027, 5, 1), check_out=date(2027, 5, 3),
+        )
+        later = ItineraryStop.objects.create(
+            day_number=2, stop_date=date(2027, 5, 3), destination="B",
+            check_in=date(2027, 5, 3), check_out=date(2027, 5, 4),
+        )
+        self.client.post(
+            reverse("admin_itinerary"),
+            {
+                "action": "update", "stop_id": first.pk, "day_number": 1, "stop_date": "2027-05-01",
+                "destination": "A", "check_in": "2027-05-01", "check_out": "2027-05-05",
+                "booking_status": "Book",
+            },
+        )
+        later.refresh_from_db()
+        self.assertEqual(later.stop_date, date(2027, 5, 5))
+        self.assertEqual(later.check_in, date(2027, 5, 5))
+        self.assertEqual(later.check_out, date(2027, 5, 6))
+        self.assertEqual(later.day_number, 5)
+
+        self.client.post(
+            reverse("admin_itinerary"),
+            {
+                "action": "update", "stop_id": first.pk, "day_number": 1, "stop_date": "2027-05-02",
+                "destination": "A", "check_in": "2027-05-01", "check_out": "2027-05-05",
+                "booking_status": "Book",
+            },
+        )
+        first.refresh_from_db()
+        self.assertEqual(first.check_in, date(2027, 5, 2))
+        self.assertEqual(first.check_out, date(2027, 5, 6))
+
+    def test_itinerary_check_in_change_updates_stop_date_and_trip_days(self):
+        self.client.force_login(self.admin)
+        first = ItineraryStop.objects.create(
+            day_number=1, stop_date=date(2027, 5, 1), destination="A",
+            check_in=date(2027, 5, 1), check_out=date(2027, 5, 3),
+        )
+        later = ItineraryStop.objects.create(day_number=3, stop_date=date(2027, 5, 3), destination="B")
+        self.client.post(
+            reverse("admin_itinerary"),
+            {
+                "action": "update", "stop_id": first.pk, "day_number": 1, "stop_date": "2027-05-01",
+                "destination": "A", "check_in": "2027-05-02", "check_out": "2027-05-03",
+                "booking_status": "Book",
+            },
+        )
+        first.refresh_from_db()
+        later.refresh_from_db()
+        self.assertEqual(first.stop_date, date(2027, 5, 2))
+        self.assertEqual(first.day_number, 1)
+        self.assertEqual(later.stop_date, date(2027, 5, 4))
+        self.assertEqual(later.day_number, 3)
+
+    def test_itinerary_create_without_trip_day_calculates_it(self):
+        self.client.force_login(self.admin)
+        ItineraryStop.objects.create(day_number=1, stop_date=date(2027, 5, 1), destination="A")
+        self.client.post(
+            reverse("admin_itinerary"),
+            {"action": "create", "stop_date": "2027-05-04", "destination": "B", "booking_status": "Book"},
+        )
+        self.assertEqual(ItineraryStop.objects.get(destination="B").day_number, 4)
+
     def test_itinerary_date_change_and_delete_shift_unbooked_stops(self):
         self.client.force_login(self.admin)
         first = ItineraryStop.objects.create(day_number=1, stop_date=date(2027, 5, 1), destination="A")
