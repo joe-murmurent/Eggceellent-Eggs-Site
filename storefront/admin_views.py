@@ -1,7 +1,11 @@
 from pathlib import Path
-from datetime import timedelta
+from datetime import date, datetime, timedelta
+from io import BytesIO
 
 import markdown
+from django.core.exceptions import ValidationError
+from django.http import HttpResponse
+from openpyxl import Workbook, load_workbook
 from django.contrib import messages
 from django.contrib.auth import get_user_model, password_validation
 from django.contrib.auth.decorators import user_passes_test
@@ -225,6 +229,104 @@ def _renumber_days():
         if stop.day_number != day_number:
             stop.day_number = day_number
             stop.save(update_fields=["day_number"])
+
+
+PLANNER_FIELDS = [f.name for f in ItineraryStop._meta.fields]
+PLANNER_DATE_FIELDS = {"stop_date", "check_in", "check_out"}
+PLANNER_SHEET = "Trip Planner"
+
+
+@user_passes_test(is_admin, login_url="home")
+@require_http_methods(["GET"])
+def export_itinerary(request):
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = PLANNER_SHEET
+    sheet.append(PLANNER_FIELDS)
+    for stop in ItineraryStop.objects.order_by("id"):
+        sheet.append([getattr(stop, name) for name in PLANNER_FIELDS])
+    for name in PLANNER_DATE_FIELDS:
+        column = sheet[PLANNER_FIELDS.index(name) + 1]
+        for cell in column[1:]:
+            cell.number_format = "yyyy-mm-dd"
+    buffer = BytesIO()
+    workbook.save(buffer)
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="trip-planner.xlsx"'
+    return response
+
+
+def _planner_cell(name, value):
+    if name in PLANNER_DATE_FIELDS:
+        if value is None or str(value).strip() == "":
+            return None
+        if isinstance(value, datetime):
+            return value.date()
+        if isinstance(value, date):
+            return value
+        return datetime.strptime(str(value).strip(), "%Y-%m-%d").date()
+    if name == "day_number":
+        return int(value) if value not in (None, "") else 1
+    return "" if value is None else str(value).strip()
+
+
+@user_passes_test(is_admin, login_url="home")
+@require_http_methods(["POST"])
+def import_itinerary(request):
+    upload = request.FILES.get("planner_file")
+    if not upload:
+        return _error(request, "Choose an Excel file to import.", ITINERARY_URL)
+    try:
+        workbook = load_workbook(upload, read_only=True, data_only=True)
+        rows = list(workbook.active.iter_rows(values_only=True))
+    except Exception:
+        return _error(request, "The file could not be read as an Excel workbook.", ITINERARY_URL)
+    if not rows:
+        return _error(request, "The file is empty.", ITINERARY_URL)
+
+    headers = [str(h).strip() if h is not None else "" for h in rows[0]]
+    missing = [name for name in ("stop_date", "destination") if name not in headers]
+    if missing:
+        return _error(request, f"Missing required column(s): {', '.join(missing)}.", ITINERARY_URL)
+    columns = {name: headers.index(name) for name in PLANNER_FIELDS if name in headers}
+
+    errors, created, updated = [], 0, 0
+    try:
+        with transaction.atomic():
+            for number, row in enumerate(rows[1:], start=2):
+                if not any(cell not in (None, "") for cell in row):
+                    continue
+                try:
+                    values = {
+                        name: _planner_cell(name, row[index] if index < len(row) else None)
+                        for name, index in columns.items()
+                        if name != "id"
+                    }
+                    raw_id = row[columns["id"]] if "id" in columns and columns["id"] < len(row) else None
+                    stop = ItineraryStop.objects.filter(pk=int(raw_id)).first() if raw_id not in (None, "") else None
+                    is_new = stop is None
+                    stop = stop or ItineraryStop()
+                    for name, value in values.items():
+                        setattr(stop, name, value)
+                    if is_new and not stop.booking_status:
+                        stop.booking_status = ItineraryStop.BOOK
+                    stop.full_clean()
+                    stop.save()
+                except (ValueError, TypeError, ValidationError) as exc:
+                    detail = "; ".join(sum(exc.message_dict.values(), [])) if isinstance(exc, ValidationError) and hasattr(exc, "error_dict") else str(exc)
+                    errors.append(f"Row {number}: {detail}")
+                    continue
+                created += is_new
+                updated += not is_new
+            if errors:
+                raise ValueError
+            _renumber_days()
+    except ValueError:
+        return _error(request, "Import cancelled, no changes saved. " + " | ".join(errors[:5]), ITINERARY_URL)
+    return _success(request, f"Import complete: {updated} updated, {created} added.", ITINERARY_URL)
 
 
 def _stop_length_days(stop):

@@ -20,4 +20,6 @@ urlpatterns = [
     path("admin/orgs/", admin_views.admin_organizations, name="admin_organizations"),
     path("admin/data-dictionary/", admin_views.admin_data_dictionary, name="admin_data_dictionary"),
     path("admin/itinerary/", admin_views.admin_itinerary, name="admin_itinerary"),
+    path("admin/itinerary/export/", admin_views.export_itinerary, name="export_itinerary"),
+    path("admin/itinerary/import/", admin_views.import_itinerary, name="import_itinerary"),
 ]

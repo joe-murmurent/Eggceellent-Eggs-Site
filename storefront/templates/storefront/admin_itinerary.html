@@ -6,6 +6,14 @@
 <section class="content-shell admin-page itinerary-page">
   <div class="page-heading"><div><p class="eyebrow">ADMINISTRATION</p><h1>Itinerary Planner</h1></div><span class="admin-count">{{ stop_rows|length }} destinations</span></div>
 
+  <div class="form-actions">
+    <a class="button button-dark" href="{% url 'export_itinerary' %}">Export to Excel</a>
+    <form method="post" action="{% url 'import_itinerary' %}" enctype="multipart/form-data" class="inline-create">{% csrf_token %}
+      <input type="file" name="planner_file" accept=".xlsx" required aria-label="Edited planner workbook">
+      <button class="button button-dark" type="submit">Import from Excel</button>
+    </form>
+  </div>
+
   {% if map_events %}
   <details class="route-map-section" data-map-disclosure open aria-labelledby="itinerary-map-title">
     <summary class="list-heading"><h2 id="itinerary-map-title">Route map</h2><span>{{ map_events|length }} located destination{{ map_events|length|pluralize }}</span><span class="summary-arrow" aria-hidden="true">⌄</span></summary>
